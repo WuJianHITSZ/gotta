@@ -1,0 +1,157 @@
+---
+title: "add metadata to the object of SMA"
+author: "Jian Wu, based on the script by Marco Vicari"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: 
+  html_document:
+    theme: cosmo
+    highlight: tango
+    css: style.css
+    code_folding: "hide"
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+    number_sections: false
+editor_options: 
+  chunk_output_type: console
+---
+
+In this script we will: 
+- upload all the Spatial Transcriptomics data used in the paper; 
+- save corresponding R objects
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+Set-upLoad libraries
+```{r message=FALSE, warning=FALSE}
+library(hdf5r)
+library(dplyr)
+library(STutility)
+library(stringr)
+library(data.table)
+library(harmony)
+# library(magrittr)
+# library(knitr)
+
+```
+
+Set-up directories and system variables
+```{r message=FALSE, warning=FALSE}
+
+project.dir <- "/Users/wujian/Documents/MARCO"
+data.dir <- paste0(project.dir, "/data")
+dir.create(paste0(project.dir, "/results"))
+dir.create(paste0(project.dir, "/results/plots"))
+plots.dir <- paste0(project.dir, "/results/plots")
+dir.create(paste0(project.dir, "/results/tables"))
+tables.dir <- paste0(project.dir, "/results/tables")
+dir.create(paste0(project.dir, "/R_objects"))
+
+matrix.cols <- c("DHB" = "darkolivegreen3",
+                 "9AA" = "gold",
+                 "ctrl" = "darkgrey",
+                 "FMP10" = "purple")
+
+```
+
+## Load processed SMA data
+```{r message=FALSE, warning=FALSE}
+
+se.multi.list <- readRDS("/Users/wujian/Documents/MARCO/R_objects/se.sma.list")
+
+```
+
+## Add metadata produced with cloupe
+
+```{r}
+# List lesion annotation files
+lesionFN <- list.files(path = data.dir, pattern = "lesion.csv", full.names = T, recursive = T)
+
+sample.id <- vector(mode = "character", length = length(lesionFN))
+for (index in 1:length(sample.id)) {
+  sample.id[index] <- strsplit(lesionFN[[index]], split = "/")[[1]][9]
+}
+names(lesionFN) <- sample.id
+
+for (index in 1:length(se.sma.list)) {
+  data <- read.csv(lesionFN[[names(se.sma.list)[index]]])
+  data$Barcode <- paste0(data$Barcode,"_1")
+  se.sma.list[[index]]$lesion <- data$lesion[match(colnames(se.sma.list[[index]]),data$Barcode)]
+}
+
+# List region annotation files
+regionFN <- list.files(path = data.dir, pattern = "region.csv", full.names = T, recursive = T)
+
+sample.id <- vector(mode = "character", length = length(regionFN))
+for (index in 1:length(sample.id)) {
+  sample.id[index] <- strsplit(regionFN[[index]], split = "/")[[1]][9]
+}
+names(regionFN) <- sample.id
+
+for (index in 1:length(se.sma.list)) {
+  data <- read.csv(regionFN[[names(se.sma.list)[index]]])
+  data$Barcode <- paste0(data$Barcode,"_1")
+  se.sma.list[[index]]$region <- data$region[match(colnames(se.sma.list[[index]]),data$Barcode)]
+}
+
+# List dopamine annotation files
+dopamineFN <- list.files(path = data.dir, pattern = "dopamine.csv", full.names = T, recursive = T)
+
+sample.id <- vector(mode = "character", length = length(dopamineFN))
+for (index in 1:length(sample.id)) {
+  sample.id[index] <- strsplit(dopamineFN[[index]], split = "/")[[1]][9]
+}
+names(dopamineFN) <- sample.id
+sample.id.dopamine <- sample.id
+
+for (index in 1:length(se.sma.list)) {
+  if(names(se.sma.list)[index] %in% names(dopamineFN)){
+      data <- read.csv(dopamineFN[[names(se.sma.list)[index]]])
+      data$Barcode <- paste0(data$Barcode,"_1")
+      se.sma.list[[index]]$dopamine <- data$dopamine[match(colnames(se.sma.list[[index]]),data$Barcode)]
+  }else{
+    se.sma.list[[index]]$dopamine <- 0
+  }
+}
+
+# List RegionLoupe annotation files
+RegionLoupeFN <- list.files(path = data.dir, pattern = "RegionLoupe.csv", full.names = T, recursive = T)
+
+sample.id <- vector(mode = "character", length = length(RegionLoupeFN))
+for (index in 1:length(sample.id)) {
+  sample.id[index] <- strsplit(RegionLoupeFN[[index]], split = "/")[[1]][9]
+}
+names(RegionLoupeFN) <- sample.id
+
+for (index in 1:length(se.sma.list)) {
+  data <- read.csv(RegionLoupeFN[[names(se.sma.list)[index]]])
+  data$Barcode <- paste0(data$Barcode,"_1")
+  se.sma.list[[index]]$RegionLoupe <- data$RegionLoupe[match(colnames(se.sma.list[[index]]),data$Barcode)]
+  se.sma.list[[index]]$RegionLoupe[se.sma.list[[index]]$RegionLoupe == "PAL"] <- "MSC"
+  se.sma.list[[index]]$RegionLoupe[se.sma.list[[index]]$RegionLoupe == "VTA-SNpc"] <- "VTA-SNc"
+}
+
+
+```
+
+```{r}
+DefaultAssay(se.sma.list[[2]]) <- "MSI"
+
+FeatureOverlay(se.sma.list[[2]], features = "lesion")+
+FeatureOverlay(se.sma.list[[2]], features = "region")+
+FeatureOverlay(se.sma.list[[2]], features = "RegionLoupe")
+```
+
+
+
+<!-- Save Seurat object -->
+```{r}
+
+saveRDS(se.sma.list, file = "/Users/wujian/Documents/MARCO/R_objects/se.sma.list.An")
+
+```

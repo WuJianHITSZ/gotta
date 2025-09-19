@@ -129,9 +129,7 @@ FindSpatialNeighbors <- function(object,images,staffli){
   col <- floor(col/2) + ceiling(row/2)
   
   face <- RowCol2Face(row = row, col = col)
-  print("hej")
-  # boundary <- ComputeBoundary(face = face, ncell = ncol(object))
-  boundary <- 1
+  boundary <- ComputeBoundary(face = face, ncell = ncol(object))
   
   setClass("Mesh", slots = list(face = "matrix", boundary = "numeric", corners = "numeric"))
   object@graphs[["mesh_Spatial"]] <- new("Mesh", face = face, boundary = boundary, corners = boundary[1])    

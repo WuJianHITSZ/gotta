@@ -1,0 +1,57 @@
+---
+title: "create geometric object"
+author: "Jian Wu"
+date: "2025-09-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load packages
+
+```{r }
+library(STutility)
+library(ggplot2)
+library(tidyr)
+library(Seurat)
+library(Matrix)
+library(R.matlab)
+library(shiny)
+library(plotly)
+library(class)
+library(dplyr)
+```
+
+## load sma object data
+
+obj.list.sma: object that is produced from multimodality integration, including both rna and msi modalities
+obj.all.rna: object of rna that went through gene expression analysis and annotation
+
+```{r pressure, echo=FALSE}
+
+object.list <- readRDS("/Users/wujian/Documents/MARCO/R_objects/se.sma.list.An")
+
+object <- object.list[[1]]
+
+```
+
+```{r}
+
+source("/Users/wujian/Documents/GitHub/GOTTA/misc/GOTTA_v1.1.1.R")
+
+object <- FindSpatialNeighbors(object, images = "X3A", staffli = T)
+
+SurfFeaturePlot(object, features = "nCount_MSI", pt.size = 1.5)
+
+```
+# test compute face area
+```{r}
+source("/Users/wujian/Documents/GitHub/GOTTA/misc/GeometricToolbox_v1.1.1.R")
+source("/Users/wujian/Documents/GitHub/GOTTA/misc/GOTTA_v1.1.1.R")
+
+object <- RunGOTT(object, reduction = "pca", n.components = 30, shape = "disk", select_points = F, aspect_ratio = 1)
+MeshFeaturePlot(object, features = "vertex_area", pt.size = 1.5)
+```
+

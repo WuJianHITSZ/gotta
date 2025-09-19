@@ -1,0 +1,234 @@
+---
+title: "process sma objects"
+author: "Jian Wu"
+date: "2025-09-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load packages
+
+```{r message=FALSE, warning=FALSE}
+library(STutility)
+library(ggplot2)
+library(magrittr)
+library(dplyr)
+library(dbscan)
+```
+
+## load sma object data
+
+obj.list.sma: object that is produced from multimodality integration, including both rna and msi modalities
+obj.all.rna: object of rna that went through gene expression analysis and annotation
+
+```{r pressure, echo=FALSE}
+
+se.multi.list <- readRDS("/Users/wujian/Documents/MARCO/data/misc/se.multi.list")
+se.RNA.list <- readRDS("/Users/wujian/Documents/MARCO/data/misc/se.RNA.list")
+se.MSI.list <- readRDS("/Users/wujian/Documents/MARCO/data/misc/se.MSI.list")
+se.merged.list <- readRDS("/Users/wujian/Documents/MARCO/data/misc/se.merged.list")
+
+```
+
+
+# plot aligned positions
+
+```{r fig.width=12, fig.height=14}
+
+aligned_coordinates <- do.call(rbind, lapply(names(se.merged.list), function(nm) {
+  dims <- GetStaffli(se.merged.list[[nm]])@dims
+  sf <- dims$`1`$width/dims$`2`$width
+  coords <- cbind(se.merged.list[[nm]][[]], GetStaffli(se.merged.list[[nm]])@meta.data) |>
+    tibble::rownames_to_column(var = "barcode") |>
+    mutate(barcode = gsub(replacement = "_1", x = barcode, pattern = "_\\d")) |>
+    select(barcode, warped_x, warped_y, nFeature_MSI) |>
+    mutate(sample_type = case_when(is.na(nFeature_MSI) ~ "RNA",
+                                   !is.na(nFeature_MSI) ~ "MSI")) |>
+    mutate(warped_x = case_when(sample_type == "MSI" ~ warped_x*sf, TRUE ~ warped_x),
+           warped_y = case_when(sample_type == "MSI" ~ warped_y*sf, TRUE ~ warped_y),
+           sample_id = nm) |>
+    select(barcode, warped_x, warped_y, sample_id, sample_type)
+  return(coords)
+}))
+
+p <- ggplot(aligned_coordinates, aes(warped_x, warped_y,color = sample_type)) +
+  geom_point(size = 0.5) +
+  facet_wrap(~sample_id, ncol = 3)
+
+p
+
+```
+
+# establish RNA-MSI mapping via nearest-neighbour classification
+
+The RNA-MSI correspondance below is slightly different with the processing in the original article of SMA, i.e., the published code in GitHub by the authors
+In M. Vicari et al's processing, a one-one correspondance between RNA-MSI is established, the shortcoming of which is that the RNA/Visium will suffer some spot lost.
+
+What will be processed here is to avoid any removing spots in RNA/Visium objects due to RNA-MSI corresponding reason, and here is how this can be achieved.
+The correspondance between the two modalities are not restricted to one-to-one type, but multiple RNA/Visium spots can correspond to the same MSI pixel, which is performed by: for each RNA/Visium spot, find its nearest-neighbor in MSI pixels (hence, the MSI pixels can not be garanteed to be used once, but rather, probably multiple times); the exact opposite way that is used in M. Vicari et al's processing.
+
+```{r eval=FALSE}
+
+# Split coordinates into a list
+aligned_coordinates_list <- split(aligned_coordinates, aligned_coordinates$sample_id)
+
+# Find the closest spatial neighbors 
+knn_spatial_df_list <- lapply(aligned_coordinates_list, function(coords) {
+  
+  # get spatial coordinates for RNA and MSI data
+  set1 = subset(coords, sample_type == "RNA")[, c("barcode", "warped_x", "warped_y")] |>
+    data.frame(row.names = 1)
+  set2 = subset(coords, sample_type == "MSI")[, c("barcode", "warped_x", "warped_y")] |>
+    data.frame(row.names = 1)
+  
+  # Calculate pairwise distances using k nearest neighbors algorithm
+  # here is the crucial difference from SMA's original program, where the positions of set1 and set2 have been swapped, and k has been changed to 1.
+  knn_spatial_df <- kNN(x = set2, k = 1, query = set1)
+  
+  return(knn_spatial_df)
+})
+
+
+```
+
+# integration
+
+Assign the nearest neighbour in MSI pixels as the corresponding MSI assay to each RNA/Visium spot, where all RNA/Visium spots are preserved, at the cost of that some MSI pixels would be multiply reused.
+
+```{r}
+
+se.sma.list <- setNames(lapply(names(se.merged.list), function(nm) {
+
+  knn_spatial_df <- knn_spatial_df_list[[nm]]
+
+  se.multi <- se.RNA.list[[nm]]
+  MSI <- se.MSI.list[[nm]]@assays$MSI@counts[, colnames(se.MSI.list[[nm]])[knn_spatial_df$id]]
+  colnames(MSI) <- colnames(se.multi)
+  se.multi[["MSI"]] <- CreateAssayObject(counts = MSI)
+
+  return(se.multi)
+
+}), nm = names(se.merged.list))
+
+names(se.sma.list) <- names(se.merged.list)
+```
+
+# a visulization of the integration results between original SMA's and ours
+
+original SMA's integration, named as se.multi.list
+the integration used here, named as se.sma.list
+
+```{r}
+
+FeatureOverlay(se.multi.list[[1]], features = "nCount_MSI")+FeatureOverlay(se.sma.list[[1]], features = "nCount_MSI")
+
+```
+
+## the chuncks below are the same QC and joint analysis pipeline tha is used in the original SMA article
+
+The original SMA object, i.e. se.multi.list, will be overwritten by se.sma.list, to facilitate going through the pipeline
+
+```{r}
+se.multi.list <- se.sma.list
+```
+
+## QC
+
+```{r eval=FALSE}
+
+se.multi.list <- lapply(se.multi.list, function(se.multi) {
+  se.multi$nFeature_RNA <- colSums(GetAssayData(se.multi, slot = "counts", assay = "RNA") > 0)
+  se.multi$nFeature_MSI <- colSums(GetAssayData(se.multi, slot = "counts", assay = "MSI") > 0)
+  return(se.multi)
+})
+
+```
+## Joint analysis
+
+```{r eval=FALSE}
+
+se.multi.list <- lapply(names(se.multi.list), function(nm) {
+  
+  se.multi <- se.multi.list[[nm]]
+  cat(sprintf("Running analysis for sample %s", nm))
+  
+  # Normalize RNA data
+  DefaultAssay(se.multi) <- 'RNA'
+  se.multi <- NormalizeData(se.multi, verbose = FALSE) |> 
+    FindVariableFeatures(verbose = FALSE) |> 
+    ScaleData(verbose = FALSE) |> 
+    RunPCA(verbose = FALSE) |>
+    RunUMAP(reduction = "pca", dims = 1:30, reduction.name = "RNA.umap", verbose = FALSE) |>
+    FindNeighbors(reduction = "pca", dims = 1:30, verbose = FALSE) |>
+    FindClusters(verbose = FALSE)
+  se.multi$RNA_clusters <- se.multi$seurat_clusters
+  
+  # Normalize MSI data
+  DefaultAssay(se.multi) <- 'MSI'
+  se.multi <- NormalizeData(se.multi, normalization.method = "CLR", verbose = FALSE) |> 
+    FindVariableFeatures(nfeatures = 200, verbose = FALSE) |> 
+    ScaleData(verbose = FALSE) |> 
+    RunPCA(reduction.name = "msipca", dims = 1:10, verbose = FALSE) |>
+    RunUMAP(reduction = "msipca", dims = 1:10, reduction.name = "MSI.umap", verbose = FALSE) |>
+    FindNeighbors(reduction = "msipca", dims = 1:10, verbose = FALSE) |>
+    FindClusters(verbose = FALSE)
+  se.multi$MSI_clusters <- se.multi$seurat_clusters
+  
+  return(se.multi)
+})
+
+```
+
+## Joint clustering
+
+```{r}
+
+se.multi.list <- lapply(se.multi.list, function(se.multi) {
+  se.multi <- FindMultiModalNeighbors(
+    se.multi, reduction.list = list("pca", "msipca"), 
+    dims.list = list(1:30, 1:10), modality.weight.name = "RNA.weight"
+  )
+  return(se.multi)
+})
+
+```
+
+## a weighted combination of RNA and protein data 
+
+```{r eval=FALSE}
+
+se.multi.list <- lapply(se.multi.list, function(se.multi) {
+  se.multi <- RunUMAP(se.multi, nn.name = "weighted.nn", reduction.name = "wnn.umap", reduction.key = "wnnUMAP_", n.epochs = 1e3, min.dist = 0.15)
+  se.multi <- FindClusters(se.multi, graph.name = "wsnn", algorithm = 3, resolution = 2, verbose = FALSE)
+  se.multi$MM_clusters <- se.multi$seurat_clusters
+  return(se.multi)
+})
+
+```
+
+## swap names
+
+```{r}
+se.sma.list <- se.multi.list
+
+se.multi.list <- readRDS("/Users/wujian/Documents/MARCO/data/misc/se.multi.list")
+
+```
+
+## display and save results
+
+```{r}
+
+FeatureOverlay(se.multi.list[[1]], features = "MM_clusters")+FeatureOverlay(se.sma.list[[1]], features = "MM_clusters")
+
+```
+
+```{r eval=FALSE, include=FALSE}
+
+saveRDS(se.sma.list, file = "/Users/wujian/Documents/MARCO/R_objects/se.sma.list")
+
+```
+

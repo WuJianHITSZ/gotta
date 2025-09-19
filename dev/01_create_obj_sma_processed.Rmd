@@ -22,10 +22,14 @@ obj.all.rna: object of rna that went through gene expression analysis and annota
 
 ```{r pressure, echo=FALSE}
 
-obj.list.sma <- readRDS("/Users/wujian/Documents/GitHub/stratums/R_objects/se.multi.list.new")
+obj.list.sma <- readRDS("/Users/wujian/Documents/MARCO/data/misc/se.multi.list")
+obj.list.rna <- readRDS("/Users/wujian/Documents/MARCO/data/misc/se.RNA.list")
+obj.list.merged <- readRDS("/Users/wujian/Documents/MARCO/data/misc/se.merged.list")
 
 obj.all.rna <- readRDS("/Users/wujian/Documents/MARCO/R_objects/mPDStrRNA.10xFFBM.STUF.An")
 obj.list.rna <- SplitObject(obj.all.rna, split.by = "Sample.ID")
+
+rm(obj.all.rna)
 ```
 
 ## create and save a toy dataset (only one sample) to test the visualization effect
@@ -41,13 +45,13 @@ the file size of obj is larger than that of obj.sub.
 transfer lesion info from obj.all to obj.sub
 
 ```{r pressure, echo=FALSE}
-obj.sma <- obj.list.sma[[5]]
-obj.rna
+obj.sma <- obj.list.sma[[3]]
+obj.rna <- obj.list.rna[[5]]
 
 
-obj.sub <- obj[,colnames(obj) %in% colnames(obj.all)]
-obj.
-obj.sub$lesion <- obj.all$lesion[colnames(obj.all) %in% colnames(obj.sub)]
+# obj.sub <- obj[,colnames(obj) %in% colnames(obj.all)]
+# obj.
+# obj.sub$lesion <- obj.all$lesion[colnames(obj.all) %in% colnames(obj.sub)]
 ```
 
 ## showing difference between obj and obj.sub
@@ -55,9 +59,13 @@ obj.sub$lesion <- obj.all$lesion[colnames(obj.all) %in% colnames(obj.sub)]
 You can also embed plots, for example:
 
 ```{r pressure, echo=FALSE}
-ST.FeaturePlot(obj, features = "RNA_clusters")+ST.FeaturePlot(obj.sub, features = "RNA_clusters")
+# ST.FeaturePlot(obj, features = "RNA_clusters")+ST.FeaturePlot(obj.sub, features = "RNA_clusters")
 
-FeatureOverlay(obj, features = "RNA_clusters")+FeatureOverlay(obj.sub, features = "lesion")
+FeatureOverlay(obj.sma, features = "RNA_clusters")
+
+
+
+FeatureOverlay(obj.rna, features = "lesion")
 
 ```
 
