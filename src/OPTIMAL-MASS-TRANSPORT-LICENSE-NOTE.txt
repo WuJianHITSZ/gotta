@@ -1,0 +1,12 @@
+Repository checked: https://github.com/joelfl/optimal-mass-transport
+Checked on: 2026-04-01
+
+I could not find a top-level LICENSE file or an explicit repository license
+declaration on the GitHub repository page for joelfl/optimal-mass-transport.
+
+Repository page used for verification:
+- https://github.com/joelfl/optimal-mass-transport
+
+Because no explicit license text was found, no license terms have been copied
+here for that repository. If you want, I can add a more detailed provenance
+note listing which files in this package were adapted from that repository.

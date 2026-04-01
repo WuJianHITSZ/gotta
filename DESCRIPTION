@@ -1,0 +1,23 @@
+Package: gotta
+Type: Package
+Title: Geometric Optimal Transport Tableau & Alignment
+Version: 1.6.9
+Authors@R: c(person("Jian", "Wu", email = "jianwu@example.com", role = c("aut", "cre")))
+Description: Tools for constructing spatial meshes, computing geometric
+    optimal transport cartograms, aligning assay layouts, estimating
+    trajectories, and visualizing mesh-based spatial analyses for Seurat
+    objects and related topological representations.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: class, EBImage, geometry, ggplot2, grDevices, grid, imager,
+        Matrix, methods, plotly, RColorBrewer, Rcpp, Rlinsolve,
+        RTriangle, SeuratObject, shiny, stats, utils
+LinkingTo: Rcpp, RcppEigen
+Suggests: knitr, rmarkdown, Seurat, STutility
+VignetteBuilder: knitr
+SystemRequirements: C++17
+NeedsCompilation: yes
+Packaged: 2026-04-01 00:55:49 UTC; jian
+Author: Jian Wu [aut, cre]
+Maintainer: Jian Wu <jianwu@example.com>
