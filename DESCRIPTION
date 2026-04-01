@@ -2,7 +2,7 @@ Package: gotta
 Type: Package
 Title: Geometric Optimal Transport Tableau & Alignment
 Version: 1.6.9
-Authors@R: c(person("Jian", "Wu", email = "jianwu@example.com", role = c("aut", "cre")))
+Authors@R: c(person("Jian", "Wu", email = "wujianhitsz@gmail.com", role = c("aut", "cre")))
 Description: Tools for constructing spatial meshes, computing geometric
     optimal transport cartograms, aligning assay layouts, estimating
     trajectories, and visualizing mesh-based spatial analyses for Seurat
