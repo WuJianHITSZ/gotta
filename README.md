@@ -87,30 +87,39 @@ If compilation fails, check first that your R version, compiler toolchain, and `
 
 ## Quick Start
 
+`gotta` ships with a lightweight toy Seurat object for reproducing the core workflow in `vignettes/quick_start.Rmd`.
+
 ```r
 library(gotta)
-library(Seurat)
+library(Matrix)
 
-# Load your spatial transcriptomics object
-object <- your_seurat_object
+toy_path <- system.file(
+  "extdata",
+  "example-object-sma-mouse-heart-3-toy.rds",
+  package = "gotta"
+)
+object <- readRDS(toy_path)
 
-# Find spatial neighbors
-object <- FindSpatialNeighbors(object, col.names = c("y", "x"))
+vertex.job <- VertexJob(reduction = "rnapca", n.components = 10)
+gott.job <- GOTTJob(vertex.job = vertex.job, shape = "free_boundary")
 
-# Run GOTT to create cartogram layout
-object <- RunGOTT(object, shape = "disk", reduction = "pca", is.pseudo.initial = TRUE)
+object <- FindSpatialNeighbors(object, col.names = c("original_y", "original_x"))
+object <- ComputeCellArea(object, vertex.job = vertex.job)
+object <- RunGOTT(object, gott.job = gott.job, is.pseudo.initial = TRUE)
+object <- RunHyperView(object, vertex.job = vertex.job, layout.name = "rnapca.free_boundary")
 
-# Visualize the cartogram
-CartFeaturePlot(object, layout.name = "pca.disk")
-
-# Run GOTTA to align spatial and PCA layouts
-alignment.job <- AlignmentJob(shape = "disk", source.assay = "spatial", target.assay = "pca")
-object <- RunGOTTA(object, alignment.job = alignment.job)
-
-# Visualize trajectory
-object <- RunTrajectory(object, target.assay = "pca", source.assay = "spatial", shape = "disk")
-ArrowFeaturePlot(object, features = "area.pca.disk")
+MeshFeaturePlot(object, layout.name = "spatial_coords", features = "RegionLoupe")
+SurfFeaturePlot(object, layout.name = "rnapca.free_boundary")
+HyperMeshFeaturePlot(object, layout.name = "rnapca.free_boundary", features = "RegionLoupe")
 ```
+
+If you are working from a cloned source tree instead of an installed package, the same toy object is stored at `inst/extdata/example-object-sma-mouse-heart-3-toy.rds`.
+
+## Example Data
+
+- `inst/extdata/example-object-sma-mouse-heart-3-toy.rds` is the packaged toy Seurat object used by the quick-start vignette.
+- It is intentionally trimmed to keep the repository lightweight while preserving the layers required by the GOTT/HyperView workflow.
+- The developer script used to generate this object is `vignettes/make_quick_start_toy_object.R`.
 
 ## Main Functions
 

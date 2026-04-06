@@ -1,0 +1,44 @@
+## load packages and data
+
+```{r}
+library(gotta)
+library(Matrix) # fill holes
+
+toy_path <- system.file(
+  "extdata",
+  "example-object-sma-mouse-heart-3-toy.rds",
+  package = "gotta"
+)
+if (!nzchar(toy_path)) {
+  toy_path <- normalizePath(
+    file.path("..", "inst", "extdata", "example-object-sma-mouse-heart-3-toy.rds"),
+    mustWork = TRUE
+  )
+}
+
+object <- readRDS(toy_path)
+```
+
+
+
+```{r}
+vertex.job <- VertexJob(reduction = "rnapca", n.components = 10)
+gott.job <- GOTTJob(vertex.job = vertex.job, shape = "free_boundary")
+
+object <- FindSpatialNeighbors(object, col.names = c("original_y","original_x"), verbose = TRUE)
+object <- ComputeCellArea(object, vertex.job = vertex.job, verbose = TRUE)
+
+print(MeshFeaturePlot(object, layout.name = "spatial_coords", features = "RegionLoupe")+
+        SurfFeaturePlot(object, layout.name = "spatial_coords", features = "area.rnapca"))
+```
+
+```{r}
+object <- RunGOTT(object, gott.job = gott.job, is.pseudo.initial = TRUE, verbose = TRUE)
+
+print(MeshFeaturePlot(object, layout.name = "rnapca.free_boundary", features = "RegionLoupe")+SurfFeaturePlot(object, layout.name = "rnapca.free_boundary"))
+```
+
+```{r}
+object <- RunHyperView(object, vertex.job = vertex.job, layout.name = "rnapca.free_boundary")
+print(HyperMeshFeaturePlot(object, layout.name = "rnapca.free_boundary", features = "RegionLoupe"))
+```
