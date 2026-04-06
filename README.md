@@ -89,6 +89,8 @@ If compilation fails, check first that your R version, compiler toolchain, and `
 
 `gotta` ships with a lightweight toy Seurat object for reproducing the core workflow in `vignettes/quick_start.Rmd`.
 
+### Load Packages and Data
+
 ```r
 library(gotta)
 library(Matrix)
@@ -99,21 +101,48 @@ toy_path <- system.file(
   package = "gotta"
 )
 object <- readRDS(toy_path)
+```
+
+If you are working from a cloned source tree instead of an installed package, the same toy object is stored at `inst/extdata/example-object-sma-mouse-heart-3-toy.rds`.
+
+### Build the Spatial Mesh
+
+```r
 
 vertex.job <- VertexJob(reduction = "rnapca", n.components = 10)
 gott.job <- GOTTJob(vertex.job = vertex.job, shape = "free_boundary")
 
 object <- FindSpatialNeighbors(object, col.names = c("original_y", "original_x"))
 object <- ComputeCellArea(object, vertex.job = vertex.job)
-object <- RunGOTT(object, gott.job = gott.job, is.pseudo.initial = TRUE)
-object <- RunHyperView(object, vertex.job = vertex.job, layout.name = "rnapca.free_boundary")
+```
 
-MeshFeaturePlot(object, layout.name = "spatial_coords", features = "RegionLoupe")
-SurfFeaturePlot(object, layout.name = "rnapca.free_boundary")
+Spatial region labels:
+![Spatial RegionLoupe](man/figures/quick-start-spatial-regionloupe.png)
+
+Spatial cell area:
+![Spatial area.rnapca](man/figures/quick-start-spatial-area-rnapca.png)
+
+### Run GOTT on the RNA PCA Geometry
+
+```r
+object <- RunGOTT(object, gott.job = gott.job, is.pseudo.initial = TRUE)
+```
+
+GOTT region labels:
+![GOTT RegionLoupe](man/figures/quick-start-gott-regionloupe.png)
+
+GOTT cell area:
+![GOTT area.rnapca](man/figures/quick-start-gott-area-rnapca.png)
+
+### Build the HyperView Embedding
+
+```r
+object <- RunHyperView(object, vertex.job = vertex.job, layout.name = "rnapca.free_boundary")
 HyperMeshFeaturePlot(object, layout.name = "rnapca.free_boundary", features = "RegionLoupe")
 ```
 
-If you are working from a cloned source tree instead of an installed package, the same toy object is stored at `inst/extdata/example-object-sma-mouse-heart-3-toy.rds`.
+HyperView region labels:
+![HyperView RegionLoupe](man/figures/quick-start-hyperview-regionloupe.png)
 
 ## Example Data
 
