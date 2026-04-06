@@ -135,6 +135,10 @@ object <- RunHyperView(object, vertex.job = vertex.job, layout.name = "rnapca.fr
 print(HyperMeshFeaturePlot(object, layout.name = "rnapca.free_boundary", features = "RegionLoupe"))
 ```
 
+![Quick Start HyperView Preview](man/figures/quick-start-hyperview-preview.png)
+
+[Open interactive 3D HyperView](https://wujianhitsz.github.io/gotta/quick-start-hyperview/)
+
 ## Example Data
 
 - `inst/extdata/example-object-sma-mouse-heart-3-toy.rds` is the packaged toy Seurat object used by the quick-start vignette.
