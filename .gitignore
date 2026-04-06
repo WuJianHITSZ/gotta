@@ -1,0 +1,16 @@
+src/*.o
+src/*.so
+src/*.dll
+src/*.a
+src/*.lib
+src/*.def
+src/*.dSYM
+src/*.exe
+src/*.exp
+src/*.obj
+src/*.tmp
+
+*.Rproj.user
+*.Rhistory
+*.RData
+*.Ruserdata

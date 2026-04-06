@@ -15,46 +15,111 @@
 
 ## Installation
 
-```r
-# Install from GitHub (requires remotes)
-remotes::install_github("WuJianHITSZ/gotta")
+### Recommended for most users
 
-# Or install from tarball
-install.packages("gotta_1.6.9.tar.gz", repos = NULL, type = "source")
+Once `gotta` is published to `r-universe`, this will be the recommended installation route for most users because it is intended to provide a smoother experience than compiling directly from GitHub source:
+
+```r
+install.packages(
+  "gotta",
+  repos = c(
+    "https://wujianhitsz.r-universe.dev",
+    "https://cloud.r-project.org"
+  )
+)
 ```
 
-### System Requirements
+Until the `r-universe` repository is live, or if you want the newest GitHub version immediately, install from GitHub source instead:
+
+```r
+install.packages("pak")
+pak::pkg_install("WuJianHITSZ/gotta")
+```
+
+You can also use `remotes` if you prefer:
+
+```r
+install.packages("remotes")
+remotes::install_github("WuJianHITSZ/gotta")
+```
+
+GitHub source installation is therefore the current fallback path and will remain useful for testing the newest development version.
+
+### Developer installation
+
+If you want the development version, plan to edit the package locally, or need to rebuild documentation and vignettes, clone the repository and install from the project directory:
+
+```bash
+git clone https://github.com/WuJianHITSZ/gotta.git
+cd gotta
+```
+
+```r
+install.packages(c("devtools", "pkgbuild"))
+devtools::install(upgrade = "never")
+```
+
+If you also want to build vignettes during installation:
+
+```r
+devtools::install(build_vignettes = TRUE, upgrade = "never")
+```
+
+### Platform requirements
+
+`gotta` contains C++ source code and requires compilation during source installation.
+
+This means GitHub-based installation methods such as `pak::pkg_install()` and `remotes::install_github()` usually need a working local build toolchain.
+
+Common requirements:
 
 - R >= 4.1.0
-- C++17 compiler
-- System dependencies for RcppEigen
+- A compiler toolchain with C++17 support
+- Build support for `Rcpp` and `RcppEigen`
+
+Platform-specific notes:
+
+- Windows: install a recent version of `Rtools` that matches your R version, then restart R before installing from source.
+- macOS: install Apple Command Line Tools with `xcode-select --install`. On Apple Silicon, make sure you are using a current R build and toolchain.
+- Linux: install `g++`, `make`, and standard development libraries from your distribution. On Debian/Ubuntu this usually means `build-essential`.
+
+If compilation fails, check first that your R version, compiler toolchain, and `Rcpp`/`RcppEigen` are all available in the same R library.
 
 ## Quick Start
 
+`gotta` ships with a lightweight toy Seurat object for reproducing the core workflow in `vignettes/quick_start.Rmd`.
+
 ```r
 library(gotta)
-library(Seurat)
+library(Matrix)
 
-# Load your spatial transcriptomics object
-object <- your_seurat_object
+toy_path <- system.file(
+  "extdata",
+  "example-object-sma-mouse-heart-3-toy.rds",
+  package = "gotta"
+)
+object <- readRDS(toy_path)
 
-# Find spatial neighbors
-object <- FindSpatialNeighbors(object, col.names = c("y", "x"))
+vertex.job <- VertexJob(reduction = "rnapca", n.components = 10)
+gott.job <- GOTTJob(vertex.job = vertex.job, shape = "free_boundary")
 
-# Run GOTT to create cartogram layout
-object <- RunGOTT(object, shape = "disk", reduction = "pca", is.pseudo.initial = TRUE)
+object <- FindSpatialNeighbors(object, col.names = c("original_y", "original_x"))
+object <- ComputeCellArea(object, vertex.job = vertex.job)
+object <- RunGOTT(object, gott.job = gott.job, is.pseudo.initial = TRUE)
+object <- RunHyperView(object, vertex.job = vertex.job, layout.name = "rnapca.free_boundary")
 
-# Visualize the cartogram
-CartFeaturePlot(object, layout.name = "pca.disk")
-
-# Run GOTTA to align spatial and PCA layouts
-alignment.job <- AlignmentJob(shape = "disk", source.assay = "spatial", target.assay = "pca")
-object <- RunGOTTA(object, alignment.job = alignment.job)
-
-# Visualize trajectory
-object <- RunTrajectory(object, target.assay = "pca", source.assay = "spatial", shape = "disk")
-ArrowFeaturePlot(object, features = "area.pca.disk")
+MeshFeaturePlot(object, layout.name = "spatial_coords", features = "RegionLoupe")
+SurfFeaturePlot(object, layout.name = "rnapca.free_boundary")
+HyperMeshFeaturePlot(object, layout.name = "rnapca.free_boundary", features = "RegionLoupe")
 ```
+
+If you are working from a cloned source tree instead of an installed package, the same toy object is stored at `inst/extdata/example-object-sma-mouse-heart-3-toy.rds`.
+
+## Example Data
+
+- `inst/extdata/example-object-sma-mouse-heart-3-toy.rds` is the packaged toy Seurat object used by the quick-start vignette.
+- It is intentionally trimmed to keep the repository lightweight while preserving the layers required by the GOTT/HyperView workflow.
+- The developer script used to generate this object is `vignettes/make_quick_start_toy_object.R`.
 
 ## Main Functions
 
