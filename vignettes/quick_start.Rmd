@@ -1,8 +1,9 @@
-## Load Packages and Data
+## load packages and data
 
 ```{r}
 library(gotta)
 library(Matrix) # fill holes
+library(patchwork)
 
 toy_path <- system.file(
   "extdata",
@@ -17,144 +18,31 @@ if (!nzchar(toy_path)) {
 }
 
 object <- readRDS(toy_path)
-
-fig_dir <- if (dir.exists(normalizePath(file.path("..", "man", "figures"), mustWork = FALSE))) {
-  normalizePath(file.path("..", "man", "figures"), mustWork = FALSE)
-} else {
-  file.path(tempdir(), "quick-start-figures")
-}
-dir.create(fig_dir, recursive = TRUE, showWarnings = FALSE)
-
-save_quick_start_plot <- function(plot, filename, width = 7, height = 6, dpi = 150) {
-  out_path <- file.path(fig_dir, filename)
-  ggplot2::ggsave(out_path, plot = plot, width = width, height = height, dpi = dpi)
-  out_path
-}
-
-save_quick_start_widget_png <- function(widget, filename, width = 1400, height = 1000) {
-  html_path <- file.path(fig_dir, sub("\\.png$", ".html", filename))
-  lib_dir <- file.path(fig_dir, sub("\\.png$", "_files", filename))
-  out_path <- file.path(fig_dir, filename)
-
-  htmlwidgets::saveWidget(widget, file = html_path, selfcontained = FALSE, libdir = lib_dir)
-
-  edge_path <- "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
-  if (!file.exists(edge_path)) {
-    stop("Microsoft Edge not found; cannot render plotly widget to PNG.")
-  }
-
-  html_uri <- paste0("file:///", normalizePath(html_path, winslash = "/"))
-  cmd <- sprintf(
-    "\"%s\" --headless --disable-gpu --hide-scrollbars --window-size=%d,%d --screenshot=\"%s\" \"%s\"",
-    edge_path,
-    width,
-    height,
-    normalizePath(out_path, winslash = "/", mustWork = FALSE),
-    html_uri
-  )
-  status <- system(cmd, intern = FALSE, ignore.stdout = TRUE, ignore.stderr = FALSE)
-  if (!identical(status, 0L) || !file.exists(out_path)) {
-    stop("Failed to render plotly widget to PNG.")
-  }
-
-  unlink(c(html_path, lib_dir), recursive = TRUE, force = TRUE)
-
-  out_path
-}
 ```
-
-## Build the Spatial Mesh
 
 ```{r}
 vertex.job <- VertexJob(reduction = "rnapca", n.components = 10)
 gott.job <- GOTTJob(vertex.job = vertex.job, shape = "free_boundary")
 
-object <- FindSpatialNeighbors(object, col.names = c("original_y", "original_x"), verbose = TRUE)
+object <- FindSpatialNeighbors(object, col.names = c("original_y","original_x"), verbose = TRUE)
 object <- ComputeCellArea(object, vertex.job = vertex.job, verbose = TRUE)
+
+print(
+  MeshFeaturePlot(object, layout.name = "spatial_coords", features = "RegionLoupe") +
+    SurfFeaturePlot(object, layout.name = "spatial_coords", features = "area.rnapca")
+)
 ```
-
-### Region Labels on the Spatial Layout
-
-```{r}
-spatial_mesh_plot <- MeshFeaturePlot(
-  object,
-  layout.name = "spatial_coords",
-  features = "RegionLoupe"
-)
-spatial_mesh_png <- save_quick_start_plot(
-  spatial_mesh_plot,
-  "quick-start-spatial-regionloupe.png"
-)
-knitr::include_graphics(spatial_mesh_png)
-```
-
-### Cell Area on the Spatial Layout
-
-```{r}
-spatial_area_plot <- SurfFeaturePlot(
-  object,
-  layout.name = "spatial_coords",
-  features = "area.rnapca"
-)
-spatial_area_png <- save_quick_start_plot(
-  spatial_area_plot,
-  "quick-start-spatial-area-rnapca.png"
-)
-knitr::include_graphics(spatial_area_png)
-```
-
-## Run GOTT on the RNA PCA Geometry
 
 ```{r}
 object <- RunGOTT(object, gott.job = gott.job, is.pseudo.initial = TRUE, verbose = TRUE)
+
+print(
+  MeshFeaturePlot(object, layout.name = "rnapca.free_boundary", features = "RegionLoupe") +
+    SurfFeaturePlot(object, layout.name = "rnapca.free_boundary")
+)
 ```
-
-### Region Labels on the GOTT Layout
-
-```{r}
-gott_mesh_plot <- MeshFeaturePlot(
-  object,
-  layout.name = "rnapca.free_boundary",
-  features = "RegionLoupe"
-)
-gott_mesh_png <- save_quick_start_plot(
-  gott_mesh_plot,
-  "quick-start-gott-regionloupe.png"
-)
-knitr::include_graphics(gott_mesh_png)
-```
-
-### Cell Area on the GOTT Layout
-
-```{r}
-gott_area_plot <- SurfFeaturePlot(
-  object,
-  layout.name = "rnapca.free_boundary"
-)
-gott_area_png <- save_quick_start_plot(
-  gott_area_plot,
-  "quick-start-gott-area-rnapca.png"
-)
-knitr::include_graphics(gott_area_png)
-```
-
-## Build the HyperView Embedding
 
 ```{r}
 object <- RunHyperView(object, vertex.job = vertex.job, layout.name = "rnapca.free_boundary")
-```
-
-### Region Labels on the HyperView Mesh
-
-```{r}
-hyperview_plot <- HyperMeshFeaturePlot(
-  object,
-  layout.name = "rnapca.free_boundary",
-  features = "RegionLoupe"
-)
-hyperview_png <- save_quick_start_widget_png(
-  hyperview_plot,
-  "quick-start-hyperview-regionloupe.png"
-)
-knitr::include_graphics(hyperview_png)
+print(HyperMeshFeaturePlot(object, layout.name = "rnapca.free_boundary", features = "RegionLoupe"))
 ```
